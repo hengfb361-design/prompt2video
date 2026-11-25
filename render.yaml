@@ -1,0 +1,18 @@
+# Render Blueprint — Prompt2Video.
+# A static site cannot serve /api/*, so this is a Node web service: server.js
+# serves public/ and proxies the visitor's Colab Gradio app (link, status,
+# generation stream, video). No database and no dependencies to install.
+services:
+  - type: web
+    name: prompt2video-studio
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

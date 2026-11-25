@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prompt2Video — ឆាតបង្កើតវីដេអូពី prompt</title>
+<meta name="description" content="Chat បង្កើតវីដេអូពី prompt។ Model LTX-Video ដំណើរការលើ Google Colab របស់អ្នក ដោយបន្ទាត់តែមួយ។">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f0f10; --side:#171718; --side2:#1f1f21; --bubble:#232326; --user:#2b3a5c;
+    --line:#2e2e31; --text:#ececf1; --dim:#9a9aa5; --blue:#4f8cff; --blue2:#79a9ff;
+    --green:#46d97a; --red:#ff6b6b; --gold:#ffcc4d;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:"Noto Sans Khmer","Khmer OS",system-ui,-apple-system,sans-serif;
+    font-size:14.5px;line-height:1.65;overflow:hidden;
+  }
+  a{color:var(--blue2)}
+  button{font:inherit;color:inherit}
+
+  .app{display:flex;height:100vh;height:100dvh}
+
+  /* ------------------------------------------------------------- sidebar */
+  aside{
+    width:270px;flex:0 0 270px;background:var(--side);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:10px;gap:8px;overflow-y:auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding:8px 6px 12px}
+  .brand i{
+    width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-style:normal;font-size:16px;
+    background:linear-gradient(150deg,#4f8cff,#8b6bff);box-shadow:0 6px 16px rgba(79,140,255,.32)
+  }
+  .brand b{font-size:13.5px;letter-spacing:.3px}
+  .brand small{display:block;color:var(--dim);font-size:10.5px;letter-spacing:.4px}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    padding:9px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--side2);cursor:pointer;font-size:12.5px;font-weight:600;
+    text-decoration:none;transition:background .12s ease,border-color .12s ease
+  }
+  .btn:hover{background:#2a2a2d}
+  .btn.primary{background:linear-gradient(150deg,#4f8cff,#6d6bff);border-color:transparent;color:#fff}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.block{width:100%}
+  .btn.tiny{padding:6px 9px;font-size:11px;border-radius:8px}
+
+  .sect{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;color:#7d7d88;padding:10px 6px 2px}
+  .card{background:var(--side2);border:1px solid var(--line);border-radius:11px;padding:10px}
+
+  label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dim);margin-bottom:8px}
+  input,select,textarea{
+    background:#141415;border:1px solid var(--line);border-radius:8px;color:var(--text);
+    padding:8px 9px;font:inherit;font-size:12.5px;width:100%
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid rgba(79,140,255,.45);border-color:transparent}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+
+  .dot{width:8px;height:8px;border-radius:50%;background:#5a5a63;display:inline-block;flex:0 0 auto}
+  .dot.live{background:var(--blue);box-shadow:0 0 0 0 rgba(79,140,255,.7);animation:pulse 1.8s infinite}
+  .dot.ok{background:var(--green)}
+  .dot.bad{background:var(--red)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,140,255,.55)}70%{box-shadow:0 0 0 7px rgba(79,140,255,0)}100%{box-shadow:0 0 0 0 rgba(79,140,255,0)}}
+  .stat{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim)}
+  .stat b{color:var(--text);font-weight:600}
+
+  /* the one line + its blue badge */
+  .oneline{position:relative;background:#101a2b;border:1px solid rgba(79,140,255,.42);border-radius:11px;padding:9px 10px}
+  .oneline .head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}
+  .oneline pre{
+    margin:0;background:#080c14;border:1px solid #1d2a44;border-radius:8px;padding:8px;
+    font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;line-height:1.55;
+    color:#bcd4ff;white-space:pre-wrap;word-break:break-all;cursor:text
+  }
+  .okbadge{
+    display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;
+    color:#8fc0ff;background:rgba(79,140,255,.14);border:1px solid rgba(79,140,255,.45);
+    padding:3px 8px;border-radius:99px;white-space:nowrap
+  }
+  .okbadge.wait{color:#b9b9c4;background:rgba(255,255,255,.06);border-color:var(--line)}
+  .okbadge.bad{color:#ffb3b3;background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.4)}
+
+  .hist{display:flex;flex-direction:column;gap:3px}
+  .hist button{
+    text-align:left;background:transparent;border:0;border-radius:8px;padding:7px 9px;
+    font-size:12px;color:#c9c9d2;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+  .hist button:hover{background:#242427}
+  .hist button.on{background:#2a2a2e;color:#fff}
+  .sidefoot{margin-top:auto;padding:8px 6px 2px;font-size:10.5px;color:#72727c;line-height:1.6}
+
+  /* ---------------------------------------------------------------- main */
+  main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{
+    display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);
+    background:rgba(15,15,16,.86);backdrop-filter:blur(8px)
+  }
+  .topbar .title{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar .spacer{flex:1}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#c3c3cc;
+    background:var(--side2);border:1px solid var(--line);border-radius:99px;padding:4px 10px;white-space:nowrap
+  }
+  #menuBtn{display:none}
+
+  .thread{flex:1;overflow-y:auto;padding:22px 0 8px;scroll-behavior:smooth}
+  .thread .inner{max-width:780px;margin:0 auto;padding:0 16px;display:flex;flex-direction:column;gap:18px}
+
+  .msg{display:flex;gap:11px;align-items:flex-start}
+  .msg .av{
+    width:29px;height:29px;flex:0 0 29px;border-radius:8px;display:grid;place-items:center;
+    font-size:14px;background:var(--side2);border:1px solid var(--line)
+  }
+  .msg.user{flex-direction:row-reverse}
+  .msg.user .av{background:linear-gradient(150deg,#4f8cff,#6d6bff);border-color:transparent}
+  .body{max-width:88%;min-width:0}
+  .bubble{
+    background:var(--bubble);border:1px solid var(--line);border-radius:14px;
+    padding:11px 14px;white-space:pre-wrap;overflow-wrap:anywhere
+  }
+  .msg.user .bubble{background:var(--user);border-color:rgba(79,140,255,.34)}
+  .bubble h3{margin:0 0 6px;font-size:14px}
+  .bubble ol,.bubble ul{margin:6px 0;padding-left:20px}
+  .bubble li{margin:3px 0}
+  .bubble code{font-family:"JetBrains Mono",monospace;font-size:12px;color:#a9c8ff}
+  .bubble .muted{color:var(--dim);font-size:12px}
+  .bubble.warn{border-color:rgba(255,204,77,.4);background:rgba(255,204,77,.07)}
+  .bubble.err{border-color:rgba(255,107,107,.42);background:rgba(255,107,107,.07)}
+
+  .codeblock{
+    position:relative;margin:9px 0 2px;background:#080c14;border:1px solid #1d2a44;border-radius:10px;padding:9px 10px
+  }
+  .codeblock pre{
+    margin:0;font-family:"JetBrains Mono",monospace;font-size:11px;line-height:1.6;
+    color:#bcd4ff;white-space:pre-wrap;word-break:break-all
+  }
+  .codeblock .tools{display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap}
+
+  .typing{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12.5px}
+  .bars{display:inline-flex;gap:3px}
+  .bars i{width:4px;height:13px;border-radius:2px;background:var(--blue);animation:bounce 1s infinite}
+  .bars i:nth-child(2){animation-delay:.15s}
+  .bars i:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,100%{opacity:.35;transform:scaleY(.6)}50%{opacity:1;transform:scaleY(1)}}
+
+  .result video{width:100%;max-height:60vh;border-radius:11px;background:#000;display:block}
+  .result .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:11.5px;color:var(--dim)}
+  .result .meta .pill{border:1px solid var(--line);border-radius:99px;padding:2px 9px;background:#1b1b1e;font-family:"JetBrains Mono",monospace;font-size:10.5px}
+
+  .composer{padding:10px 16px 16px;border-top:1px solid var(--line);background:linear-gradient(180deg,rgba(15,15,16,.6),var(--bg))}
+  .composer .inner{max-width:780px;margin:0 auto}
+  .box{
+    display:flex;align-items:flex-end;gap:8px;background:#1b1b1e;border:1px solid var(--line);
+    border-radius:15px;padding:8px 8px 8px 12px;transition:border-color .15s ease
+  }
+  .box:focus-within{border-color:rgba(79,140,255,.55)}
+  .box textarea{
+    flex:1;background:transparent;border:0;resize:none;max-height:150px;min-height:24px;
+    padding:6px 0;font-size:14px;line-height:1.5;outline:none
+  }
+  .send{
+    width:34px;height:34px;flex:0 0 34px;border-radius:10px;border:0;cursor:pointer;
+    background:linear-gradient(150deg,#4f8cff,#6d6bff);color:#fff;font-size:16px;display:grid;place-items:center
+  }
+  .send:disabled{background:#2f2f34;color:#77777f;cursor:not-allowed}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .quick button{
+    background:transparent;border:1px solid var(--line);border-radius:99px;
+    padding:4px 10px;font-size:11px;color:#b9b9c4;cursor:pointer
+  }
+  .quick button:hover{background:#242427;color:#fff}
+  .hintline{text-align:center;color:#6f6f79;font-size:10.5px;margin-top:7px}
+
+  #backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8}
+
+  @media (max-width:860px){
+    aside{position:fixed;left:0;top:0;bottom:0;z-index:9;transform:translateX(-100%);transition:transform .2s ease;box-shadow:0 0 40px rgba(0,0,0,.6)}
+    aside.open{transform:none}
+    #menuBtn{display:inline-flex}
+    #backdrop.show{display:block}
+    .body{max-width:94%}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================================================ sidebar -->
+  <aside id="sidebar">
+    <div class="brand">
+      <i>🎬</i>
+      <div><b>Prompt2Video</b><small>LTX-VIDEO · COLAB</small></div>
+    </div>
+
+    <button class="btn block primary" id="newChat">＋ ការសន្ទនាថ្មី</button>
+
+    <div class="sect">ការភ្ជាប់ · connection</div>
+    <div class="card">
+      <div class="stat" style="margin-bottom:8px">
+        <span class="dot" id="connDot"></span>
+        <b id="connText">មិនទាន់ភ្ជាប់</b>
+      </div>
+      <input id="baseUrl" placeholder="https://xxxx.gradio.live" inputmode="url" spellcheck="false">
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-top:6px">
+        <button class="btn tiny" id="connectBtn">ភ្ជាប់</button>
+        <button class="btn tiny" id="copyBase" title="ចម្លង link api">📋</button>
+        <button class="btn tiny" id="forgetBtn" title="លុប link">✕</button>
+      </div>
+      <div class="muted" id="autoLink" style="font-size:11px;margin-top:7px;line-height:1.5">⏳ រង់ចាំ Colab ផ្ញើ link api…</div>
+    </div>
+
+    <div class="sect">បន្ទាត់ Colab</div>
+    <div class="oneline">
+      <div class="head">
+        <span style="font-size:11px;color:#9fc2ff;font-weight:700">ដាក់ក្នុង Colab cell</span>
+        <span class="okbadge wait" id="lineBadge"><span class="dot" id="lineDot"></span> កំពុងពិនិត្យ</span>
+      </div>
+      <pre id="oneLine">…</pre>
+      <div style="display:flex;gap:6px;margin-top:7px">
+        <button class="btn tiny" id="copyLine">📋 ចម្លង</button>
+        <a class="btn tiny" href="/colab/Prompt2Video_Colab.ipynb" download>⬇️ .ipynb</a>
+      </div>
+    </div>
+
+    <div class="sect">ការកំណត់ · settings</div>
+    <div class="card">
+      <div class="row2">
+        <label class="f">Resolution
+          <select id="sRes">
+            <option value="704×480">704×480 · 16:9 (លឿន)</option>
+            <option value="768×512">768×512 · 3:2</option>
+            <option value="512×512">512×512 · 1:1</option>
+            <option value="480×704">480×704 · 9:16</option>
+            <option value="512×768">512×768 · 2:3</option>
+            <option value="960×544">960×544 · ធំ (យឺត)</option>
+          </select>
+        </label>
+        <label class="f">រយៈពេល
+          <select id="sFrames">
+            <option value="49">49f · ~2s</option>
+            <option value="65">65f · ~2.7s</option>
+            <option value="81">81f · ~3.4s</option>
+            <option value="97" selected>97f · ~4s</option>
+            <option value="121">121f · ~5s</option>
+          </select>
+        </label>
+      </div>
+      <div class="row2">
+        <label class="f">Steps
+          <input id="sSteps" type="number" min="15" max="50" value="30">
+        </label>
+        <label class="f">Guidance
+          <input id="sGuide" type="number" min="1.5" max="6" step="0.1" value="4.0">
+        </label>
+      </div>
+      <label class="f">Seed (−1 = random)
+        <input id="sSeed" type="number" value="-1">
+      </label>
+      <label class="f" style="margin-bottom:0">Negative prompt
+        <textarea id="sNeg" rows="2" spellcheck="false">worst quality, inconsistent motion, blurry, jittery, distorted, watermark, text, logo</textarea>
+      </label>
+    </div>
+
+    <div class="sect">ប្រវត្តិ</div>
+    <div class="hist" id="hist"></div>
+
+    <div class="sidefoot">
+      Model រត់លើ Colab របស់អ្នក · គេហទំព័រនេះគ្រាន់តែជាឆាត<br>
+      <a href="/colab/p2v_app.py" target="_blank" rel="noopener">app source</a> ·
+      <a href="/colab/run.sh" target="_blank" rel="noopener">run.sh</a>
+    </div>
+  </aside>
+
+  <!-- =============================================================== main -->
+  <main>
+    <div class="topbar">
+      <button class="btn tiny" id="menuBtn">☰</button>
+      <div class="title" id="chatTitle">ការសន្ទនាថ្មី</div>
+      <div class="spacer"></div>
+      <span class="chip" id="modelChip"><span class="dot" id="chipDot"></span> LTX-Video 2B · T4</span>
+    </div>
+
+    <div class="thread" id="thread"><div class="inner" id="threadInner"></div></div>
+
+    <div class="composer">
+      <div class="inner">
+        <div class="box">
+          <textarea id="input" rows="1" placeholder="ពិពណ៌នាវីដេអូ… ឧ. a red vintage car drives along a rainy street at night, neon reflections, cinematic"></textarea>
+          <button class="send" id="sendBtn" title="បង្កើត">↑</button>
+        </div>
+        <div class="quick" id="quick">
+          <button data-p="a red vintage car drives slowly along a rainy Bangkok street at night, neon reflections on wet asphalt, cinematic, shallow depth of field">🌃 Night city</button>
+          <button data-p="a lone traveler in a long coat walks through a foggy train platform, camera slowly pushes in, moody lighting, cinematic, 35mm film">🎞️ Cinematic</button>
+          <button data-p="a schoolgirl with a red umbrella runs across a rooftop at sunset, orbit camera, anime style, cel shaded, vibrant colors">🌸 Anime</button>
+          <button data-p="a matte black smartwatch rotates slowly on a black pedestal, macro shot, studio lighting, 3D render, ultra detailed">📦 Product</button>
+          <button data-p="an ancient stone temple with carved faces stands among jungle trees as mist drifts, aerial drone shot, soft daylight, cinematic">🇰🇭 Angkor</button>
+        </div>
+        <div class="hintline">Enter = ផ្ញើ · Shift+Enter = បន្ទាត់ថ្មី · T4 បង្កើត ១ ក្ដ្យូបយកពេលជាច្រើននាទី</div>
+      </div>
+    </div>
+  </main>
+</div>
+<div id="backdrop"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const ORIGIN = location.origin;
+  const LS = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }
+  };
+
+  /* ---------------------------------------------------------------- state */
+  const state = {
+    base: LS.get("p2v.base", ""),
+    connected: false,
+    busy: false,
+    messages: [],          // {role, kind, text, videoUrl, info, prompt}
+    sessions: LS.get("p2v.sessions", []),
+    sessionId: null
+  };
+  const settings = Object.assign(
+    { res: "704×480", frames: "97", steps: 30, guide: 4.0, seed: -1, neg: $("sNeg").value },
+    LS.get("p2v.settings", {})
+  );
+
+  /* ------------------------------------------------------------- one line */
+  const ONE_LINE = "!wget -qO /content/p2v.sh " + ORIGIN + "/colab/run.sh && BASE=" + ORIGIN + " bash /content/p2v.sh";
+  $("oneLine").textContent = ONE_LINE;
+
+  function copy(text, btn, label) {
+    const reset = () => setTimeout(() => { btn.textContent = label; }, 1800);
+    const done = () => { btn.textContent = "✅ ចម្លងរួច"; reset(); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else fallback();
+    function fallback() {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); done(); } catch (_) { btn.textContent = "សូមចម្លងដៃ"; }
+      ta.remove();
+    }
+  }
+  $("copyLine").addEventListener("click", () => copy(ONE_LINE, $("copyLine"), "📋 ចម្លង"));
+
+  /* --------------------------------------------- blue badge: script alive? */
+  async function checkScript() {
+    const badge = $("lineBadge"), dot = $("lineDot");
+    try {
+      const r = await fetch("/colab/run.sh", { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      badge.className = "okbadge";
+      dot.className = "dot live";
+      badge.innerHTML = '<span class="dot live" id="lineDot"></span> ✓ បានផ្ទៀងផ្ទាត់ · ដំណើរការ';
+    } catch (err) {
+      badge.className = "okbadge bad";
+      badge.innerHTML = '<span class="dot bad"></span> script មិនអាចចូលបាន';
+    }
+  }
+  checkScript();
+
+  /* ------------------------------------------------------------ connection */
+  function normBase(v) {
+    let s = (v || "").trim();
+    if (!s) return "";
+    if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+    return s.replace(/\/+$/, "");
+  }
+
+  function setConn(ok, text) {
+    state.connected = !!ok;
+    $("connDot").className = "dot " + (ok ? "ok" : "");
+    $("chipDot").className = "dot " + (ok ? "live" : "");
+    $("connText").textContent = text;
+  }
+
+  // ការភ្ជាប់៖ link ត្រូវបានរក្សាទុកខាង server (D1) ហើយការបង្កើតវីដេអូឆ្លងកាត់
+  // /api/generate របស់វេបសាយ — browser មិនហៅ gradio.live ផ្ទាល់ទេ ដូច្នេះគ្មាន CORS។
+  let autoBase = "";
+
+  async function fetchStatus() {
+    const r = await fetch("/api/status", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  }
+
+  async function pullAutoLink() {
+    const info = $("autoLink");
+    let d = null;
+    try {
+      d = await fetchStatus();
+    } catch (_) {
+      info.textContent = "link api: មិនអាចអានបាន";
+      setConn(false, "server មិនឆ្លើយ");
+      return;
+    }
+    const base = normBase(d && d.base);
+    if (!base) {
+      autoBase = ""; state.base = "";
+      info.textContent = "⏳ រង់ចាំ Colab ផ្ញើ link api…";
+      setConn(false, "មិនទាន់ភ្ជាប់");
+      return;
+    }
+    state.base = base;
+    if (base !== autoBase) { autoBase = base; $("baseUrl").value = base; }
+    const when = d.updated_at ? new Date(d.updated_at).toLocaleTimeString() : "";
+    if (d.online) {
+      info.textContent = "🟦 link api ពី Colab" + (when ? " · " + when : "") + " · ភ្ជាប់ស្វ័យប្រវត្តិ";
+      setConn(true, "ភ្ជាប់រួច · រួចរាល់");
+    } else {
+      info.textContent = "⚠️ link មាន តែ Colab មិនឆ្លើយ" + (when ? " · " + when : "") +
+        " — សូមដំណើរការ cell ក្នុង Colab ឡើងវិញ";
+      setConn(false, "Colab មិនឆ្លើយ");
+    }
+  }
+
+  async function connect(silent) {
+    const base = normBase($("baseUrl").value || state.base);
+    if (!base) { setConn(false, "មិនទាន់ភ្ជាប់"); return false; }
+    $("baseUrl").value = base;
+    setConn(false, "កំពុងភ្ជាប់…");
+    try {
+      const r = await fetch("/api/tunnel", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ base })
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+    } catch (_) {
+      setConn(false, "link មិនត្រឹមត្រូវ");
+      if (!silent) addAssistant(errBubble("link នេះមិនត្រូវបានទទួលទេ — ត្រូវជា https://xxxx.gradio.live។"));
+      return false;
+    }
+    autoBase = base;
+    await pullAutoLink();
+    if (!silent && state.connected) {
+      addAssistant(textBubble("✅ ភ្ជាប់រួច — ឥឡូវវាយ prompt ហើយចុច ↑ ដើម្បីបង្កើតវីដេអូ។"));
+    }
+    return state.connected;
+  }
+
+  $("connectBtn").addEventListener("click", () => connect(false));
+  $("baseUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); connect(false); } });
+  $("forgetBtn").addEventListener("click", () => {
+    state.base = ""; LS.set("p2v.base", ""); $("baseUrl").value = "";
+    autoBase = "";
+    $("autoLink").textContent = "⏳ រង់ចាំ Colab ផ្ញើ link api…";
+    fetch("/api/tunnel", { method: "DELETE", cache: "no-store" }).catch(() => {});
+    setConn(false, "មិនទាន់ភ្ជាប់");
+  });
+  $("copyBase").addEventListener("click", () => {
+    const v = $("baseUrl").value || state.base;
+    if (v) copy(v, $("copyBase"), "📋");
+  });
+
+  /* ------------------------------------------- link api ស្វ័យប្រវត្តិ (Colab) */
+  // p2v_app.py ផ្ញើ gradio.live link មក /api/tunnel ដូច្នេះវេបសាយបង្ហាញវា
+  // ហើយភ្ជាប់ដោយខ្លួនឯង — មិនចាំបាច់ចម្លងពី output របស់ Colab ទេ។
+  pullAutoLink();
+  setInterval(pullAutoLink, 20000);
+
+  /* --------------------------------------------------------------- thread */
+  const inner = $("threadInner");
+
+  function scrollDown() {
+    const t = $("thread");
+    requestAnimationFrame(() => { t.scrollTop = t.scrollHeight; });
+  }
+
+  function node(role, kids, extraClass) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg " + role;
+    const av = document.createElement("div");
+    av.className = "av";
+    av.textContent = role === "user" ? "🧑" : "🎬";
+    const body = document.createElement("div");
+    body.className = "body";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble" + (extraClass ? " " + extraClass : "");
+    kids.forEach((k) => bubble.appendChild(k));
+    body.appendChild(bubble);
+    wrap.append(av, body);
+    return wrap;
+  }
+
+  function textBubble(text) {
+    const frag = document.createDocumentFragment();
+    const p = document.createElement("div");
+    p.textContent = text;
+    frag.appendChild(p);
+    return frag;
+  }
+  function errBubble(text) {
+    const frag = document.createDocumentFragment();
+    const p = document.createElement("div");
+    p.textContent = text;
+    frag.appendChild(p);
+    return { frag, cls: "err" };
+  }
+
+  function addUser(text) {
+    state.messages.push({ role: "user", text });
+    inner.appendChild(node("user", [textBubble(text)]));
+    scrollDown();
+  }
+
+  function addAssistant(payload) {
+    if (payload && payload.frag) {
+      inner.appendChild(node("assistant", [payload.frag], payload.cls));
+      scrollDown();
+      return;
+    }
+    inner.appendChild(node("assistant", [payload]));
+    scrollDown();
+  }
+
+  function assistantText(html) {
+    const d = document.createElement("div");
+    d.innerHTML = html;
+    return d;
+  }
+
+  /* --------------------------------------------------------- welcome card */
+  function welcome() {
+    const d = document.createElement("div");
+    d.innerHTML =
+      "<h3>សូមស្វាគមន៍ 👋 ខ្ញុំបង្កើតវីដេអូពី prompt</h3>" +
+      "<div class='muted'>ខ្ញុំមិនមែន AI នៅលើ server នេះទេ — ខ្ញុំភ្ជាប់ទៅ model <b>LTX-Video 2B</b> " +
+      "ដែលរត់លើ GPU ឥតគិតថ្លៃរបស់ Google Colab របស់អ្នក។</div>" +
+      "<ol>" +
+      "<li>បើក <a href='https://colab.research.google.com' target='_blank' rel='noopener'>colab.research.google.com</a> → " +
+      "<b>Runtime → Change runtime type → T4 GPU</b></li>" +
+      "<li>បិទភ្ជាប់បន្ទាត់ខាងក្រោមក្នុង cell ថ្មី → Run (Shift+Enter)</li>" +
+      "<li>រង់ចាំ — វេបសាយនឹងទទួល link <code>https://xxxx.gradio.live</code> ដោយស្វ័យប្រវត្តិ " +
+      "ហើយបង្ហាញវាក្នុង <b>ការភ្ជាប់</b> ខាងឆ្វេង</li>" +
+      "<li>វាយ prompt ខាងក្រោម → វីដេអូនឹងបង្ហាញនៅទីនេះ</li>" +
+      "</ol>";
+
+    const cb = document.createElement("div");
+    cb.className = "codeblock";
+    const pre = document.createElement("pre");
+    pre.textContent = ONE_LINE;
+    const tools = document.createElement("div");
+    tools.className = "tools";
+    const b1 = document.createElement("button");
+    b1.className = "btn tiny";
+    b1.textContent = "📋 ចម្លងបន្ទាត់";
+    b1.addEventListener("click", () => copy(ONE_LINE, b1, "📋 ចម្លងបន្ទាត់"));
+    const b2 = document.createElement("a");
+    b2.className = "btn tiny";
+    b2.href = "/colab/Prompt2Video_Colab.ipynb";
+    b2.download = "";
+    b2.textContent = "⬇️ ទាញ .ipynb";
+    const badge = document.createElement("span");
+    badge.className = "okbadge";
+    badge.innerHTML = '<span class="dot live"></span> បន្ទាត់នេះដំណើរការ';
+    tools.append(b1, b2, badge);
+    cb.append(pre, tools);
+
+    d.appendChild(cb);
+    const note = document.createElement("div");
+    note.className = "muted";
+    note.style.marginTop = "8px";
+    note.textContent = "សម្គាល់៖ គ្មាន model ណាមួយធ្វើតាម prompt បាន 100% ទេ — បង្កើត ២–៣ seed រួចជ្រើសយកល្អបំផុត។";
+    d.appendChild(note);
+    return d;
+  }
+
+  /* --------------------------------------------------- generate (proxy) */
+  // វេបសាយហៅ /api/generate របស់ខ្លួនឯង (same-origin) ហើយ Worker ទៅហៅ gradio.live
+  // ជំនួស browser — ដូច្នេះគ្មាន CORS ទេ ហើយ error ត្រូវបានរាយច្បាស់។
+  function friendlyError(payload) {
+    const code = payload && payload.error;
+    if (code === "no-link") return "Colab មិនទាន់ផ្ញើ link មកវេបសាយទេ — សូមដំណើរការ cell ក្នុង Colab សិន";
+    if (code === "offline") return "Colab មិនឆ្លើយតប — link gradio.live ប្រហែលស្លាប់ហើយ (Colab ដាច់ ឬបិទ)។ សូម restart cell";
+    if (code === "upstream") {
+      const detail = String((payload && (payload.detail || payload.message)) || "").trim();
+      return "Gradio បដិសេធ" + (payload.status ? " (" + payload.status + ")" : "") +
+        (detail ? "៖ " + detail.slice(0, 300) : "");
+    }
+    return (payload && (payload.message || payload.detail)) || "server error";
+  }
+
+  function parseErrorEvent(raw) {
+    try {
+      const j = JSON.parse(raw);
+      if (typeof j === "string") return j;
+      if (j && (j.error || j.message)) return String(j.error || j.message);
+    } catch (_) { /* plain text */ }
+    return raw;
+  }
+
+  async function postGenerate(args, onTick) {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ data: args })
+    });
+    const type = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      let payload = null;
+      try { payload = await res.json(); } catch (_) { /* not json */ }
+      throw new Error(friendlyError(payload) + " [HTTP " + res.status + "]");
+    }
+    if (!/text\/event-stream/i.test(type)) {
+      const j = await res.json();
+      if (j && Array.isArray(j.data)) return j.data;
+      throw new Error(friendlyError(j));
+    }
+    return await readSSE(res, onTick);
+  }
+
+  async function readSSE(res, onTick) {
+    if (!res.body) throw new Error("stream មិនអាចអានបាន");
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", event = "", out = null;
+    const t0 = Date.now();
+    const timer = setInterval(() => { if (onTick) onTick(Math.round((Date.now() - t0) / 1000)); }, 1000);
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const block = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          let data = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            else if (line.startsWith("data:")) data += line.slice(5).trim();
+          }
+          if (event === "error") throw new Error(parseErrorEvent(data) || "generation error");
+          if (event === "complete" || (event === "process_completed")) {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed && parsed.data) out = parsed.data;
+              else if (Array.isArray(parsed)) out = parsed;
+            } catch (_) { /* ignore partial */ }
+          }
+        }
+        if (out) break;
+      }
+    } finally {
+      clearInterval(timer);
+      try { await reader.cancel(); } catch (_) {}
+    }
+    if (!out) throw new Error("គ្មានលទ្ធផលត្រឡប់មកវិញ (stream បិទ)");
+    return out;
+  }
+
+  // វីដេអូក៏ឆ្លងកាត់ Worker ដែរ (/api/media) ដើម្បីកុំឱ្យ browser ទាញពី gradio.live ផ្ទាល់។
+  function mediaUrl(base, item) {
+    if (!item) return "";
+    const raw = typeof item === "string" ? item : (item.url || item.path || "");
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw)) return "/api/media?u=" + encodeURIComponent(raw);
+    if (raw.startsWith("/")) return "/api/media?u=" + encodeURIComponent(base + raw);
+    return "/api/media?u=" + encodeURIComponent(base + "/" + raw);
+  }
+
+  /* ------------------------------------------------------------ generating */
+  function typingNode() {
+    const d = document.createElement("div");
+    d.className = "typing";
+    d.innerHTML = '<span class="bars"><i></i><i></i><i></i></span> <span id="typingText">កំពុងបង្កើតវីដេអូ… 0s</span>';
+    return d;
+  }
+
+  async function generate(prompt) {
+    const base = state.base;
+    if (!base) {
+      addAssistant(errBubble("មិនទាន់ភ្ជាប់ Gradio ទេ — ដាក់ link gradio.live ក្នុងប្រអប់ “ការភ្ជាប់” ខាងឆ្វេងសិន។"));
+      $("baseUrl").focus();
+      return;
+    }
+    state.busy = true;
+    $("sendBtn").disabled = true;
+
+    addUser(prompt);
+    $("chatTitle").textContent = prompt.slice(0, 42);
+    $("input").value = "";
+    autoGrow();
+
+    const wrap = node("assistant", [typingNode()]);
+    inner.appendChild(wrap);
+    scrollDown();
+    const textEl = wrap.querySelector("#typingText");
+
+    const args = [
+      prompt, settings.neg, settings.res, settings.frames,
+      Number(settings.steps), Number(settings.guide), Number(settings.seed)
+    ];
+
+    try {
+      const data = await postGenerate(args, (s) => {
+        if (textEl) textEl.textContent = "កំពុងបង្កើតវីដេអូ… " + s + "s";
+      });
+      const url = mediaUrl(base, data[0]);
+      const info = typeof data[1] === "string" ? data[1] : "";
+      if (!url) throw new Error("Gradio មិនបានផ្ញើវីដេអូមកវិញ (សូមពិនិត្យ signature របស់ app)");
+
+      wrap.remove();
+      const holder = document.createElement("div");
+      holder.className = "result";
+      const video = document.createElement("video");
+      video.src = url; video.controls = true; video.playsInline = true;
+      video.autoplay = true; video.loop = true; video.muted = true;
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = settings.res + " · " + settings.frames + "f · " + settings.steps + " steps";
+      const a = document.createElement("a");
+      a.className = "btn tiny";
+      a.href = url; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "⬇️ ទាញ MP4";
+      const again = document.createElement("button");
+      again.className = "btn tiny";
+      again.textContent = "↻ បង្កើតម្តងទៀត";
+      again.addEventListener("click", () => generate(prompt));
+      meta.append(pill, a, again);
+      holder.append(video, meta);
+      if (info) {
+        const pre2 = document.createElement("div");
+        pre2.className = "muted";
+        pre2.style.marginTop = "6px";
+        pre2.textContent = info;
+        holder.appendChild(pre2);
+      }
+      addAssistant(holder);
+      state.messages.push({ role: "assistant", kind: "video", videoUrl: url, info, prompt });
+      rememberSession(prompt);
+    } catch (err) {
+      wrap.remove();
+      const msg = String(err && err.message ? err.message : err);
+      let hint = "";
+      if (/Invalid|parameter|duration|resolution/i.test(msg)) {
+        hint = " — app ក្នុង Colab ជំនាន់ចាស់ (signature ខុស)៖ សូម Restart session ហើយ run cell ម្តងទៀត ដើម្បីទាញ p2v_app.py ថ្មី។";
+      } else if (/quota|queue|busy|រវល់/i.test(msg)) {
+        hint = " — queue រវល់៖ រង់ចាំបន្តិចរួចព្យាយាមម្តងទៀត។";
+      } else if (/model|load|GPU|CUDA|memory|OOM/i.test(msg)) {
+        hint = " — សូមមើល log ក្នុង Colab (RAM/VRAM) ដើម្បីដឹងថា load ជាប់ឬអត់។";
+      }
+      addAssistant(errBubble("បង្កើតមិនបាន៖ " + msg + hint));
+      state.messages.push({ role: "assistant", kind: "text", text: "error: " + msg });
+    } finally {
+      state.busy = false;
+      $("sendBtn").disabled = false;
+    }
+  }
+
+  /* -------------------------------------------------------------- sessions */
+  function rememberSession(prompt) {
+    const s = {
+      id: state.sessionId || String(Date.now()),
+      title: prompt.slice(0, 40),
+      messages: state.messages.slice(-12)
+    };
+    state.sessionId = s.id;
+    const list = state.sessions.filter((x) => x.id !== s.id);
+    list.unshift(s);
+    state.sessions = list.slice(0, 8);
+    LS.set("p2v.sessions", state.sessions);
+    renderHist();
+  }
+
+  function renderHist() {
+    const box = $("hist");
+    box.innerHTML = "";
+    if (!state.sessions.length) {
+      const d = document.createElement("div");
+      d.className = "sidefoot";
+      d.style.padding = "2px 8px";
+      d.textContent = "មិនទាន់មាន";
+      box.appendChild(d);
+      return;
+    }
+    state.sessions.forEach((s) => {
+      const b = document.createElement("button");
+      b.textContent = "💬 " + s.title;
+      b.title = s.title;
+      if (s.id === state.sessionId) b.className = "on";
+      b.addEventListener("click", () => loadSession(s));
+      box.appendChild(b);
+    });
+  }
+
+  function loadSession(s) {
+    state.sessionId = s.id;
+    state.messages = [];
+    inner.innerHTML = "";
+    (s.messages || []).forEach((m) => {
+      if (m.role === "user") {
+        state.messages.push(m);
+        inner.appendChild(node("user", [textBubble(m.text)]));
+      } else if (m.kind === "video" && m.videoUrl) {
+        state.messages.push(m);
+        const holder = document.createElement("div");
+        holder.className = "result";
+        const v = document.createElement("video");
+        v.src = m.videoUrl; v.controls = true; v.playsInline = true; v.loop = true; v.muted = true;
+        holder.appendChild(v);
+        inner.appendChild(node("assistant", [holder]));
+      }
+    });
+    $("chatTitle").textContent = s.title;
+    renderHist();
+    scrollDown();
+  }
+
+  /* --------------------------------------------------------------- composer */
+  const input = $("input");
+  function autoGrow() {
+    input.style.height = "auto";
+    input.style.height = Math.min(150, input.scrollHeight) + "px";
+  }
+  input.addEventListener("input", autoGrow);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+  });
+  $("sendBtn").addEventListener("click", submit);
+  $("quick").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-p]");
+    if (!b) return;
+    input.value = b.dataset.p;
+    autoGrow();
+    input.focus();
+  });
+
+  function submit() {
+    if (state.busy) return;
+    const p = input.value.trim();
+    if (!p) return;
+    generate(p);
+  }
+
+  $("newChat").addEventListener("click", () => {
+    state.sessionId = null;
+    state.messages = [];
+    inner.innerHTML = "";
+    $("chatTitle").textContent = "ការសន្ទនាថ្មី";
+    addAssistant(welcome());
+    renderHist();
+    closeSidebar();
+  });
+
+  /* ---------------------------------------------------------------- settings */
+  function bindSetting(id, key, cast) {
+    const el = $(id);
+    if (settings[key] !== undefined && settings[key] !== null) el.value = settings[key];
+    const save = () => {
+      settings[key] = cast ? cast(el.value) : el.value;
+      LS.set("p2v.settings", settings);
+    };
+    el.addEventListener("change", save);
+    el.addEventListener("input", save);
+  }
+  bindSetting("sRes", "res");
+  bindSetting("sFrames", "frames");
+  bindSetting("sSteps", "steps", (v) => Number(v) || 30);
+  bindSetting("sGuide", "guide", (v) => Number(v) || 4);
+  bindSetting("sSeed", "seed", (v) => (v === "" ? -1 : Number(v)));
+  bindSetting("sNeg", "neg");
+
+  /* --------------------------------------------------------------- sidebar */
+  const sidebar = $("sidebar"), backdrop = $("backdrop");
+  function openSidebar() { sidebar.classList.add("open"); backdrop.classList.add("show"); }
+  function closeSidebar() { sidebar.classList.remove("open"); backdrop.classList.remove("show"); }
+  $("menuBtn").addEventListener("click", () => sidebar.classList.contains("open") ? closeSidebar() : openSidebar());
+  backdrop.addEventListener("click", closeSidebar);
+
+  /* ------------------------------------------------------------------ boot */
+  addAssistant(welcome());
+  renderHist();
+  if (state.base) { $("baseUrl").value = state.base; connect(true); }
+  autoGrow();
+})();
+</script>
+</body>
+</html>
